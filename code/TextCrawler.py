@@ -95,10 +95,12 @@ def crawl_with_title(title, val, lock):
                 %(news_date, val.value, time_interval, news_title))
         #print('[%d] %.3f sec to read \'%s\'' %(val.value, time_interval, news_title))
 
-        file_path = os.path.join(output_path, ('%03d-'%len(os.listdir(output_path)) + news_title))
-        output_file = open(file_path, 'w', encoding='utf-8')
-        output_file.write(news_text)
-        output_file.close() 
+        file_path = os.path.join(output_path, news_title)
+        #file_path = os.path.join(output_path, ('%03d-'%len(os.listdir(output_path)) + news_title))
+        if not os.path.exists(file_path):
+            output_file = open(file_path, 'w', encoding='utf-8')
+            output_file.write(news_text)
+            output_file.close() 
 
 # 기사 본문 내용 긁어오기 (위 함수 내부에서 기사 본문 주소 받아 사용되는 함수)
 def get_text(URL):
