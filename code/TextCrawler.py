@@ -23,11 +23,11 @@ BASE_URL = "http://finance.naver.com"
 
 
 # 기사 검색 페이지에서 기사 제목에 링크된 기사 본문 주소 받아오기
-def pass_url_list(url_list):
+def pass_url_list(url_list, proc_num):
     for u in url_list:
-        get_link_from_news_title(u)
+        get_link_from_news_title(u, proc_num)
 		
-def get_link_from_news_title(URL):
+def get_link_from_news_title(URL, proc_num):
     v = Value('i', 0)
     lock = Lock()
 
@@ -40,7 +40,7 @@ def get_link_from_news_title(URL):
     soup = BeautifulSoup(source_code_from_URL, 'lxml', from_encoding='utf-8')
 
     num_news = int(soup.find_all('p', 'resultCount')[0].find_all(text=True)[3].replace(',',''))
-    print('Total news:', num_news)
+    #print('Total news:', num_news)
     page_num = math.ceil(num_news/20)
 
     for i in range(page_num):
@@ -56,18 +56,11 @@ def get_link_from_news_title(URL):
         num_news = len(titles)
 		
         for title in titles:
-            crawl_with_title(title, v, lock)
+            crawl_with_title(title, v, lock, proc_num)
 
     print("총 %d개의 기사를 모았습니다" %v.value)
 
-
-'''
-def crawl_with_title_list(title_list, val, lock):
-    for t in title_list:
-        crawl_with_title(t, val, lock)
-'''
-
-def crawl_with_title(title, val, lock):
+def crawl_with_title(title, val, lock, proc_num):
     with lock:
         val.value += 1
 
@@ -91,8 +84,8 @@ def crawl_with_title(title, val, lock):
 
         global start_time
         time_interval = time.time() - start_time
-        print('<%s> [%d] %.3f sec. now reading \'%s\'' \
-                %(news_date, val.value, time_interval, news_title))
+        print('[proc: %02d] <%s> (%d) %.3f sec. now reading \'%s\'' \
+                %(proc_num, news_date, val.value, time_interval, news_title))
         #print('[%d] %.3f sec to read \'%s\'' %(val.value, time_interval, news_title))
 
         file_path = os.path.join(output_path, news_title)
@@ -144,11 +137,15 @@ def main():
     global start_time
     start_time = time.time()
 
-    start_date = '2018-01-07'
-    end_date = '2018-07-01'
     date_range = pandas.date_range(start=START_DATE, end=END_DATE)
-    url_list = list(map(lambda d: URL1+str(d).split(' ')[0]+URL2+str(d).split(' ')[0],\
-        date_range))
+    date_list = list(map(lambda d: str(d).split(' ')[0], date_range))
+    
+    exist_date = os.listdir(OUTPUT)
+    target_list = list(set(date_list) - set(exist_date))
+    print(target_list)
+    print(len(target_list))
+
+    url_list = list(map(lambda d: URL1 + d + URL2 + d, target_list))
 
     proc_url_list = []
     for i in range(NUM_PROCESS):
@@ -156,7 +153,7 @@ def main():
 
     procs = []
     for i in range(NUM_PROCESS):
-        p = Process(target = pass_url_list, args = (proc_url_list[i],))
+        p = Process(target = pass_url_list, args = (proc_url_list[i],i,))
         procs.append(p)
         p.start()
 
