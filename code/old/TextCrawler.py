@@ -11,11 +11,6 @@ import pandas
 
 sys.setrecursionlimit(100000)
 
-START_DATE = '2015-01-01'
-END_DATE = '2018-07-01'
-
-NUM_PROCESS = 32
-OUTPUT = '../sample'
 URL1 = 'https://finance.naver.com/news/news_search.nhn?rcdate=&q=%BB%EF%BC%BA%C0%FC%C0%DA'\
             + '&x=0&y=0&sm=all.basic&pd=1&stDateStart='
 URL2 = '&stDateEnd='
@@ -23,17 +18,13 @@ BASE_URL = "http://finance.naver.com"
 
 
 # 기사 검색 페이지에서 기사 제목에 링크된 기사 본문 주소 받아오기
-def pass_url_list(url_list):
-    for u in url_list:
-        get_link_from_news_title(u)
-		
-def get_link_from_news_title(URL):
+def get_link_from_news_title(URL, output_dir):
     v = Value('i', 0)
     lock = Lock()
 
     output_path = ''
-    if not os.path.exists(OUTPUT):
-        os.system('mkdir ' + OUTPUT)
+    if not os.path.exists(output_dir):
+        os.system('mkdir ' + output_dir)
 
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     source_code_from_URL = urllib.request.urlopen(req).read()
@@ -43,6 +34,7 @@ def get_link_from_news_title(URL):
     print('Total news:', num_news)
     page_num = math.ceil(num_news/20)
 
+    procs = []
     for i in range(page_num):
         URL_with_page_num = URL + '&page=' + str(i+1)
         req = urllib.request.Request(URL_with_page_num, headers={'User-Agent': 'Mozilla/5.0'})
@@ -54,22 +46,27 @@ def get_link_from_news_title(URL):
 
         num_process = 4
         num_news = len(titles)
-		
-        for title in titles:
-            crawl_with_title(title, v, lock)
+        for i in range(num_process):
+            p = Process(target = crawl_with_title_list, \
+                    args = (titles[i*5 : (i+1)*5], output_dir, v, lock))
+            procs.append(p)
+            p.start()
+    for p in procs:
+        p.join()
 
     print("총 %d개의 기사를 모았습니다" %v.value)
 
 
-'''
-def crawl_with_title_list(title_list, val, lock):
+def crawl_with_title_list(title_list, output_dir, val, lock):
     for t in title_list:
-        crawl_with_title(t, val, lock)
-'''
+        crawl_with_title(t, output_dir, val, lock)
 
-def crawl_with_title(title, val, lock):
+def crawl_with_title(title, output_dir, val, lock):
     with lock:
         val.value += 1
+
+        if val.value%20==0:
+            print('num of news: %d' %val.value)
 
         news_title = title.find_all(text = True)[1]
         news_title.replace('\n', ' ')
@@ -80,22 +77,20 @@ def crawl_with_title(title, val, lock):
         title_link = title.select('a')
         article_URL = title_link[0]['href']
 
+        global start_time
+        time_interval = time.time() - start_time
+        print('[%d] %.3f sec to read \'%s\'' %(val.value, time_interval, news_title))
+
         if (article_URL[:19] != "/news/news_read.nhn"):
             print("url error")
             return
 
         news_date, news_text = get_text(BASE_URL + article_URL)
-        if not os.path.exists(os.path.join(OUTPUT, news_date)):
-            os.system('mkdir ' + os.path.join(OUTPUT, news_date))
-        output_path = os.path.join(OUTPUT, news_date)
+        if not os.path.exists(os.path.join(output_dir, news_date)):
+            os.system('mkdir ' + os.path.join(output_dir, news_date))
+        output_path = os.path.join(output_dir, news_date)
 
-        global start_time
-        time_interval = time.time() - start_time
-        print('<%s> [%d] %.3f sec. now reading \'%s\'' \
-                %(news_date, val.value, time_interval, news_title))
-        #print('[%d] %.3f sec to read \'%s\'' %(val.value, time_interval, news_title))
-
-        file_path = os.path.join(output_path, ('%03d-'%len(os.listdir(output_path)) + news_title))
+        file_path = os.path.join(output_path, ('[%03d]'%len(os.listdir(output_path)) + news_title))
         output_file = open(file_path, 'w', encoding='utf-8')
         output_file.write(news_text)
         output_file.close() 
@@ -144,22 +139,14 @@ def main():
 
     start_date = '2018-01-07'
     end_date = '2018-07-01'
-    date_range = pandas.date_range(start=START_DATE, end=END_DATE)
-    url_list = list(map(lambda d: URL1+str(d).split(' ')[0]+URL2+str(d).split(' ')[0],\
-        date_range))
+    date_range = pandas.date_range(start=start_date, end=end_date)
+    print(date_range)
 
-    proc_url_list = []
-    for i in range(NUM_PROCESS):
-        proc_url_list.append(url_list[i::NUM_PROCESS])
-
-    procs = []
-    for i in range(NUM_PROCESS):
-        p = Process(target = pass_url_list, args = (proc_url_list[i],))
-        procs.append(p)
-        p.start()
-
-    for p in procs:
-        p.join()
+    output_dir = '../sample'
+    for dt in date_range:
+        date = str(dt).split(' ')[0]
+        target_url = URL1 + date + URL2 + date
+        get_link_from_news_title(target_url, output_dir)
 
 if __name__ == '__main__':
     main()
