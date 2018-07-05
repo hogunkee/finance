@@ -23,37 +23,26 @@ f.close()
 
 ## word counting
 NUM_SAMPLE = 50000
-c = 0
 count_word = {}
 filelist = []
 for date in os.listdir(TEXT_DIR):
     datepath = os.path.join(TEXT_DIR, date)
-    '''
-    for filename in os.listdir(datepath):
-        filepath = os.path.join(datepath, filename)
-        f = open(filepath, 'r')
-        _text = f.read().split()
-        c += 1
-        if c>50000:
-            break
+    filelist += list(map(lambda k: os.path.join(datepath, k), os.listdir(datepath)))
 
-        for _word in _text:
+for filepath in random.sample(filelist, NUM_SAMPLE):
+    _title = filepath.split('/')[-1]
+
+    f = open(filepath, 'r')
+    _text = f.read()
+    whole_text = _title + ' ' + _text
+    words = whole_text.split()
+
+    for _word in words:
+        if not _word.isdigit():
             if _word in count_word.keys():
                 count_word[_word] += 1
             else:
                 count_word[_word] = 1
-    '''
-    filelist += list(map(lambda k: os.path.join(datepath, k), os.listdir(datepath)))
-
-for filepath in random.sample(filelist, NUM_SAMPLE):
-    f = open(filepath, 'r')
-    _text = f.read().split()
-
-    for _word in _text:
-        if _word in count_word.keys():
-            count_word[_word] += 1
-        else:
-            count_word[_word] = 1
 most_words = sorted(list(count_word.items()), key=lambda x: x[1], reverse=True)
 
 pprint(most_words[:100])
