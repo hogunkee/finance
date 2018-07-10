@@ -16,7 +16,7 @@ TEXT_DIR = '../data/news/'
 STOCK_DIR = '../data/stock.csv'
 VALIDATION = 0.1
 TITLE_LEN = 15
-TEXT_LEN = 10000
+TEXT_LEN = 5000
 
 hidden_dim = 300
 bs = 100
@@ -51,8 +51,8 @@ if exist('total_data'):
     total_data = load_obj('total_data')
 else:
     texts, titles, dates = load_text(TEXT_DIR)
-    titles_seq = tokenizer.texts_to_sequences(titles)
-    texts_seq = tokenizer.texts_to_sequences(texts)
+    titles_seq = pad_sequences(tokenizer.texts_to_sequences(titles), maxlen=TITLE_LEN)
+    texts_seq = pad_sequences(tokenizer.texts_to_sequences(texts), maxlen=TEXT_LEN)
 
     stock, sdate, updown = zip(*stock_data(STOCK_DIR))
     date2updown = dict(zip(sdate, updown))
@@ -61,6 +61,7 @@ else:
     save_obj(total_data, 'total_data')
 
 n_symbols = min(VOCA_SIZE, len(word2index))
+print(n_symbols)
 
 # data format: x1(title), x2(text), y(up/down label: 1 or 0)
 random.shuffle(total_data)
